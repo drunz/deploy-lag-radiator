@@ -53,6 +53,7 @@ $(document).ready(function() {
   var api_token = getQueryVariable('token');
   var repo_owner = getQueryVariable('owner') || 'alphagov';
   var resolve_tags = !!getQueryVariable('resolve_tags');
+  var ignore_merges = !!getQueryVariable('ignore_merges');
 
   var repos_container = $('#repos');
 
@@ -87,7 +88,8 @@ $(document).ready(function() {
       api_tags_url: build_api_tags_url(path),
       commits_ahead: 0,
       merges_ahead: 0,
-      oldest_merge: null
+      oldest_merge: null,
+      oldest_commit: null
     }
   });
 
@@ -145,9 +147,14 @@ $(document).ready(function() {
     var mergeCommits = repo_state.commits.filter(function(commit) {
       return commit.parents.length > 1;
     });
+    
+    var simpleCommits = repo_state.commits.filter(function(commit) {
+      return commit.parents.length === 1;
+    });
 
     repo.merges_ahead = mergeCommits.length;
     repo.oldest_merge = mergeCommits.length ? mergeCommits[0].commit.author.date : null;
+    repo.oldest_commit = simpleCommits.length ? simpleCommits[0].commit.author.date : null;
 
     // Reset the compare URL to use original references
     repo.http_compare_url = build_http_compare_url(repo.path, from_tag, to_tag);
@@ -190,18 +197,20 @@ $(document).ready(function() {
   }
 
   function redraw_repo(repo) {
-    if (repo.merges_ahead) {
+    if (!ignore_merges && repo.merges_ahead) {
       var message = repo.merges_ahead == 1 ? 'undeployed merge' : 'undeployed merges';
       var diff_text = repo.merges_ahead + ' <small>' + message + '</small>';
+      var oldest_change = repo.oldest_merge;
     } else if (repo.commits_ahead) {
       var message = repo.commits_ahead == 1 ? 'undeployed commits' : 'undeployed commits';
       var diff_text = repo.commits_ahead + ' <small>' + message + '</small>';
+      var oldest_change = repo.oldest_commit;
     }
 
     repo.$el.attr('class', repo_state(repo));
     repo.$el.find('.diff').html(diff_text);
     repo.$el.find('.name a').attr('href', repo.http_compare_url);
-    repo.$el.find('.time').text(repo.oldest_merge ? prettyDate(repo.oldest_merge) : 'all deployed');
+    repo.$el.find('.time').text(oldest_change ? prettyDate(oldest_change) : 'all deployed');
 
     // TODO: Don't resort the entire list when a single repo updates.
     sort_repos();
