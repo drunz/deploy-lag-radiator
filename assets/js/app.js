@@ -218,27 +218,31 @@ $(document).ready(function() {
 
   function sort_repos() {
     var compare = function(a,b) {
+      var oldest = {
+        a: ignore_merges ? a.oldest_commit : a.oldest_merge,
+        b: ignore_merges ? b.oldest_commit : b.oldest_merge
+      };
       // If both repos are up-to-date or equally stale, sort by name.
-      if (a.oldest_merge === b.oldest_merge) {
+      if (oldest.a === oldest.b) {
         return a.name < b.name ? -1 : 1;
       }
       // If repo A is up-to-date, B goes first.
-      else if (!a.oldest_merge) {
+      else if (!oldest.a) {
         return 1;
       }
       // If repo B is up-to-date, A goes first.
-      else if (!b.oldest_merge) {
+      else if (!oldest.b) {
         return -1;
       }
       // If repo B is older, B goes first.
-      else if (a.oldest_merge > b.oldest_merge) {
+      else if (oldest.a > oldest.b) {
         return 1;
       }
       // If repo A is older, A goes first.
-      else if (a.oldest_merge < b.oldest_merge) {
+      else if (oldest.a < oldest.b) {
         return -1;
       }
-    }
+    };
     $.each(repos.sort(compare),function(i,repo) {
       repo.$el.detach().appendTo(repos_container);
     });
@@ -246,7 +250,8 @@ $(document).ready(function() {
 
   function repo_state(repo) {
     if (repo.commits_ahead) {
-      var age = secondsAgo(repo.oldest_merge);
+      var oldest = ignore_merges ? repo.oldest_commit : repo.oldest_merge;
+      var age = secondsAgo(oldest);
 
       if (age > 86400 * 4) {
         return 'very-stale';
